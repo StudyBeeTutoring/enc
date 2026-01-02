@@ -4,584 +4,516 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculator</title>
-    <!-- Load Pyodide (Python in Browser) -->
+    <!-- Load Pyodide -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <style>
-        /* --- CIA GRADE STYLING --- */
-        body { font-family: 'Courier New', sans-serif; background-color: #121212; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #e0e0e0; }
-        .container { width: 350px; background: #1e1e1e; border-radius: 8px; box-shadow: 0 15px 35px rgba(0,0,0,0.9); padding: 25px; border: 1px solid #333; }
+        /* --- DARK OPS THEME --- */
+        body { font-family: 'Courier New', monospace; background-color: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #ccc; }
+        .container { width: 380px; background: #111; border-radius: 4px; border: 1px solid #333; box-shadow: 0 0 40px rgba(0,0,0,1); padding: 20px; position: relative; }
         
-        /* App View Management */
+        /* Scanline Effect */
+        .container::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 999; background-size: 100% 2px, 3px 100%; pointer-events: none; opacity: 0.3;}
+
         .app-view { display: none; }
-        .app-view.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+        .app-view.active { display: block; }
 
-        /* Calculator Styles - Looks like a standard utility app */
-        .display { background: #2b2b2b; color: #fff; text-align: right; padding: 20px; font-size: 2.5em; border-radius: 6px; margin-bottom: 20px; font-family: sans-serif; overflow-x: auto; min-height: 40px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);}
-        .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        .btn { background: #333; color: white; border: none; padding: 18px; font-size: 1.3em; border-radius: 6px; cursor: pointer; transition: all 0.1s; box-shadow: 0 3px 6px rgba(0,0,0,0.2); }
-        .btn:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .btn:hover { background: #424242; }
-        .op { background: #555; }
-        .equal { background: #ff9800; grid-column: span 1; color: #212121; font-weight: bold;} 
-        .zero { grid-column: span 2; }
-        .ac { background: #d32f2f; }
-
-        /* Spy Interface Styles - Technical & Dark */
-        h2 { text-align: center; color: #ff9800; text-transform: uppercase; letter-spacing: 3px; font-size: 1.1em; border-bottom: 1px solid #444; padding-bottom: 15px; margin-top: 0;}
-        #back-to-calc { background: transparent; border: 1px solid #555; color: #777; padding: 4px 8px; cursor: pointer; float: right; font-size: 0.7em; margin-top: -5px;}
-        #back-to-calc:hover { color: #fff; border-color: #fff; }
+        /* Calculator (Disguise) */
+        .display { background: #222; color: #fff; text-align: right; padding: 25px; font-size: 2.2em; border-radius: 2px; margin-bottom: 20px; font-family: sans-serif; overflow-x: auto;}
+        .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .btn { background: #1a1a1a; color: #ddd; border: 1px solid #333; padding: 20px; font-size: 1.2em; cursor: pointer; transition: 0.1s; }
+        .btn:hover { background: #2a2a2a; border-color: #555; }
+        .equal { background: #b71c1c; color: white; border-color: #b71c1c; }
         
-        .tabs { overflow: hidden; margin-bottom: 20px; display: flex; border-bottom: 1px solid #444;}
-        .tab-link { background-color: transparent; border: none; outline: none; cursor: pointer; padding: 12px 0; flex: 1; color: #666; transition: 0.3s; font-family: 'Courier New', monospace; font-weight: bold;}
-        .tab-link.active { background-color: #252525; color: #ff9800; border-bottom: 2px solid #ff9800; }
-        .tab-content { display: none; padding-top: 10px; }
-
-        input, textarea { width: 100%; box-sizing: border-box; background: #121212; border: 1px solid #444; color: #00e676; font-family: monospace; padding: 12px; margin-bottom: 12px; border-radius: 4px; outline: none;}
-        input:focus, textarea:focus { border-color: #00e676; }
-        textarea { resize: vertical; min-height: 90px; }
+        /* Secure Interface */
+        h2 { text-align: center; color: #b71c1c; letter-spacing: 4px; font-size: 1em; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top:0; text-transform: uppercase;}
         
-        .file-wrapper { position: relative; margin-bottom: 15px; border: 1px dashed #555; padding: 10px; text-align: center; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-        .file-wrapper:hover { border-color: #aaa; background: #252525; }
-        input[type="file"] { width: 100%; }
+        .tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 15px; }
+        .tab-link { background: transparent; border: none; flex: 1; padding: 10px; color: #555; cursor: pointer; font-family: inherit; font-weight: bold; }
+        .tab-link.active { color: #b71c1c; border-bottom: 2px solid #b71c1c; background: #111; }
+        .tab-content { display: none; }
 
-        button.action-btn { width: 100%; background: #00e676; color: #000; padding: 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; margin-top: 10px; transition: 0.2s;}
-        button.action-btn:hover { background: #00c853; box-shadow: 0 0 10px rgba(0, 230, 118, 0.3); }
-        button.action-btn:disabled { background: #444; color: #888; cursor: not-allowed; box-shadow: none;}
+        label { font-size: 0.7em; color: #666; display: block; margin-bottom: 5px; text-transform: uppercase; }
+        input, textarea, select { width: 100%; background: #000; border: 1px solid #333; color: #0f0; padding: 10px; box-sizing: border-box; margin-bottom: 15px; font-family: monospace; outline: none; }
+        input:focus, textarea:focus { border-color: #b71c1c; }
+        textarea { min-height: 80px; resize: vertical; }
 
-        #status-message { margin-top: 15px; text-align: center; font-size: 0.85em; color: #ffeb3b; min-height: 20px; white-space: pre-wrap; }
-        
-        /* Loading Bar */
-        #loader-bar-container { width: 100%; height: 4px; background: #333; margin-bottom: 15px; display: none; }
-        #loader-bar { height: 100%; background: #00e676; width: 0%; transition: width 0.3s; }
+        /* Output Options */
+        .mode-switch { display: flex; gap: 10px; margin-bottom: 15px; }
+        .mode-opt { flex: 1; background: #222; padding: 10px; text-align: center; cursor: pointer; border: 1px solid #333; font-size: 0.8em; }
+        .mode-opt.active { background: #b71c1c; color: white; border-color: #b71c1c; }
 
-        .hidden { display: none !important; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .action-btn { width: 100%; background: #b71c1c; color: white; border: none; padding: 15px; cursor: pointer; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; }
+        .action-btn:hover { background: #d32f2f; }
+        .action-btn:disabled { background: #333; cursor: not-allowed; color: #555; }
+
+        #status-message { color: #ff9800; text-align: center; font-size: 0.8em; margin-top: 10px; min-height: 20px; white-space: pre-wrap; }
+        .copy-box { background: #151515; padding: 10px; border: 1px solid #333; word-break: break-all; font-size: 0.8em; color: #888; display: none; cursor: pointer; }
+        .copy-box:hover { color: #fff; border-color: #555; }
+
+        /* Overlay for Lockout */
+        #lockout { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 1000; text-align: center; padding-top: 50%; color: red; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- --- VIEW 1: THE DISGUISE (CALCULATOR) --- -->
+        <!-- CALCULATOR VIEW -->
         <div id="calculator" class="app-view active">
             <div class="display" id="calc-display">0</div>
             <div class="buttons">
-                <button class="btn ac" data-value="C">AC</button>
-                <button class="btn op" data-value="/">÷</button>
-                <button class="btn op" data-value="*">×</button>
-                <button class="btn op" data-value="del">⌫</button>
-                <button class="btn" data-value="7">7</button>
-                <button class="btn" data-value="8">8</button>
-                <button class="btn" data-value="9">9</button>
-                <button class="btn op" data-value="-">-</button>
-                <button class="btn" data-value="4">4</button>
-                <button class="btn" data-value="5">5</button>
-                <button class="btn" data-value="6">6</button>
-                <button class="btn op" data-value="+">+</button>
-                <button class="btn" data-value="1">1</button>
-                <button class="btn" data-value="2">2</button>
-                <button class="btn" data-value="3">3</button>
-                <button class="btn equal" data-value="=">=</button>
-                <button class="btn zero" data-value="0">0</button>
-                <button class="btn" data-value=".">.</button>
+                <button class="btn" onclick="calcInput('C')">AC</button>
+                <button class="btn" onclick="calcInput('/')">÷</button>
+                <button class="btn" onclick="calcInput('*')">×</button>
+                <button class="btn" onclick="calcInput('del')">⌫</button>
+                <button class="btn" onclick="calcInput('7')">7</button>
+                <button class="btn" onclick="calcInput('8')">8</button>
+                <button class="btn" onclick="calcInput('9')">9</button>
+                <button class="btn" onclick="calcInput('-')">-</button>
+                <button class="btn" onclick="calcInput('4')">4</button>
+                <button class="btn" onclick="calcInput('5')">5</button>
+                <button class="btn" onclick="calcInput('6')">6</button>
+                <button class="btn" onclick="calcInput('+')">+</button>
+                <button class="btn" onclick="calcInput('1')">1</button>
+                <button class="btn" onclick="calcInput('2')">2</button>
+                <button class="btn" onclick="calcInput('3')">3</button>
+                <button class="btn equal" onclick="calcInput('=')">=</button>
+                <button class="btn" style="grid-column: span 2" onclick="calcInput('0')">0</button>
+                <button class="btn" onclick="calcInput('.')">.</button>
             </div>
         </div>
 
-        <!-- --- VIEW 2: THE PAYLOAD (ENCRYPTOR) --- -->
+        <!-- ENCRYPTOR VIEW -->
         <div id="encryptor" class="app-view">
-            <button id="back-to-calc">LOCK & EXIT</button>
-            <h2>Secure Protocol</h2>
-            
-            <div id="loader-bar-container"><div id="loader-bar"></div></div>
-            <div id="init-status" style="text-align:center; font-size:0.7em; color:#666; margin-bottom:10px;">System Standby</div>
+            <button onclick="lockAndExit()" style="float:right; background:none; border:none; color:#555; cursor:pointer;">[EXIT]</button>
+            <h2>Paranoid Protocol</h2>
             
             <div class="tabs">
-                <button class="tab-link active" onclick="openTab('Encrypt')">ENCODE</button>
-                <button class="tab-link" onclick="openTab('Decrypt')">DECODE</button>
+                <button class="tab-link active" onclick="switchTab('Encrypt')">ENCRYPT</button>
+                <button class="tab-link" onclick="switchTab('Decrypt')">DECRYPT</button>
             </div>
 
-            <!-- ENCRYPT TAB -->
+            <!-- ENCRYPT -->
             <div id="Encrypt" class="tab-content" style="display:block;">
-                <textarea id="msg-input" placeholder=">> INPUT SENSITIVE DATA"></textarea>
-                <input type="password" id="enc-pass" placeholder=">> KEY (PASSPHRASE)">
-                <div class="file-wrapper">
-                    <div style="font-size: 0.8em; color: #aaa;">SELECT CARRIER IMAGE (PNG)</div>
+                
+                <div class="mode-switch">
+                    <div id="mode-text" class="mode-opt active" onclick="setMode('text')">TEXT / LINK</div>
+                    <div id="mode-img" class="mode-opt" onclick="setMode('img')">IMAGE HIDE</div>
+                </div>
+
+                <textarea id="msg-input" placeholder=">> ENTER CLASSIFIED INTEL"></textarea>
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:2">
+                        <input type="password" id="enc-pass" placeholder=">> PASSPHRASE">
+                    </div>
+                    <div style="flex:1">
+                        <input type="number" id="enc-timer" placeholder="MINS" title="Self-Destruct Timer (0 = Never)">
+                    </div>
+                </div>
+
+                <div id="file-input-area" style="display:none;">
+                    <label>CARRIER IMAGE (PNG)</label>
                     <input type="file" id="enc-file" accept="image/png">
                 </div>
-                <button id="btn-encrypt" class="action-btn" onclick="performEncryption()">ENCRYPT & HIDE</button>
+
+                <button id="btn-enc" class="action-btn" onclick="processEncrypt()">EXECUTE</button>
+                
+                <!-- Output for Text Mode -->
+                <div id="text-output" class="copy-box" onclick="copyToClip(this.innerText)"></div>
             </div>
 
-            <!-- DECRYPT TAB -->
+            <!-- DECRYPT -->
             <div id="Decrypt" class="tab-content">
-                <input type="password" id="dec-pass" placeholder=">> KEY (PASSPHRASE)">
-                <div class="file-wrapper">
-                    <div style="font-size: 0.8em; color: #aaa;">UPLOAD SECURE IMAGE</div>
+                <input type="password" id="dec-pass" placeholder=">> PASSPHRASE">
+                
+                <div id="dec-mode-selector" style="margin-bottom:15px; font-size:0.8em; color:#666;">
+                    INPUT SOURCE: 
+                    <label style="display:inline; margin-left:10px;"><input type="radio" name="d-src" value="text" checked onclick="toggleDecInput()"> TEXT/LINK</label>
+                    <label style="display:inline; margin-left:10px;"><input type="radio" name="d-src" value="img" onclick="toggleDecInput()"> IMAGE</label>
+                </div>
+
+                <div id="dec-text-area">
+                    <textarea id="dec-text-input" placeholder=">> PASTE ENCRYPTED PAYLOAD"></textarea>
+                </div>
+
+                <div id="dec-file-area" style="display:none;">
                     <input type="file" id="dec-file" accept="image/png">
                 </div>
-                <button id="btn-decrypt" class="action-btn" onclick="performDecryption()">REVEAL & DECRYPT</button>
+
+                <button id="btn-dec" class="action-btn" onclick="processDecrypt()">DECRYPT</button>
                 
-                <div id="dec-output-container" class="hidden">
-                    <hr style="border: 0; border-top: 1px dashed #444; margin: 15px 0;">
-                    <textarea id="dec-result" readonly placeholder="Output will appear here..."></textarea>
-                    <button id="btn-copy" class="action-btn" style="background:#333; border: 1px solid #555; color: #fff; font-size: 0.8em; padding: 10px;">COPY TO CLIPBOARD (30s WIPE)</button>
-                </div>
+                <div id="dec-result" style="margin-top:15px; color:#0f0; border:1px dashed #333; padding:10px; display:none; overflow-wrap: break-word;"></div>
             </div>
 
-            <div id="status-message"></div>
+            <div id="status-message">Initializing Crypto Core...</div>
         </div>
+
+        <div id="lockout">DATA EXPIRED<br>DELETED</div>
     </div>
 
-    <!-- --- JAVASCRIPT & PYTHON LOGIC --- -->
     <script>
-        // ==========================================
-        // CONFIGURATION & SETUP
-        // ==========================================
-        const SECRET_PIN = "999999"; // TYPE THIS PIN THEN '=' TO UNLOCK
+        // --- CONFIGURATION ---
+        const SECRET_PIN = "999999"; 
         let pyodide = null;
-        let pythonReady = false;
+        let isPyReady = false;
+        let currentMode = 'text'; // 'text' or 'img'
 
-        // ==========================================
-        // UI: CALCULATOR LOGIC
-        // ==========================================
-        const display = document.getElementById('calc-display');
-        let currentExpr = '';
+        // --- CALCULATOR LOGIC ---
+        let calcExpr = "";
+        const calcDisp = document.getElementById('calc-display');
 
-        document.querySelector('.buttons').addEventListener('click', (e) => {
-            if (!e.target.matches('button')) return;
-            const val = e.target.dataset.value;
-
-            if (val === 'C') {
-                currentExpr = '';
-                display.innerText = '0';
-            } else if (val === 'del') {
-                currentExpr = currentExpr.slice(0, -1);
-                display.innerText = currentExpr || '0';
-            } else if (val === '=') {
-                // >>>> BACKDOOR CHECK <<<<
-                if (currentExpr === SECRET_PIN) {
-                    unlockSpyMode();
-                    currentExpr = '';
-                    display.innerText = '0';
-                    return;
-                }
-                // Standard Calc Logic
-                try {
-                    // Basic security: only allow math chars
-                    if(/^[0-9+\-*/().]+$/.test(currentExpr)) {
-                        currentExpr = String(Function('"use strict";return (' + currentExpr + ')')());
-                        display.innerText = currentExpr;
-                    } else {
-                        throw new Error();
-                    }
-                } catch {
-                    display.innerText = 'Error';
-                    currentExpr = '';
-                }
+        function calcInput(val) {
+            if (val === 'C') { calcExpr = ""; calcDisp.innerText = "0"; }
+            else if (val === 'del') { calcExpr = calcExpr.slice(0, -1); calcDisp.innerText = calcExpr || "0"; }
+            else if (val === '=') {
+                if (calcExpr === SECRET_PIN) { unlockApp(); return; }
+                try { calcDisp.innerText = eval(calcExpr) || "0"; calcExpr = String(eval(calcExpr)); } 
+                catch { calcDisp.innerText = "Err"; calcExpr = ""; }
             } else {
-                if (display.innerText === '0' && val !== '.') currentExpr = '';
-                currentExpr += val;
-                display.innerText = currentExpr;
-            }
-        });
-
-        // ==========================================
-        // UI: SPY MODE TRANSITIONS
-        // ==========================================
-        function unlockSpyMode() {
-            document.getElementById('calculator').classList.remove('active');
-            document.getElementById('encryptor').classList.add('active');
-            
-            // Only init Python once
-            if (!pythonReady) {
-                initPython();
+                if(calcExpr.length < 15) {
+                    calcExpr += val;
+                    calcDisp.innerText = calcExpr;
+                }
             }
         }
 
-        document.getElementById('back-to-calc').addEventListener('click', () => {
-            document.getElementById('encryptor').classList.remove('active');
-            document.getElementById('calculator').classList.add('active');
-            // Clean UI for security
-            document.getElementById('msg-input').value = "";
-            document.getElementById('dec-result').value = "";
-            document.getElementById('enc-pass').value = "";
-            document.getElementById('dec-pass').value = "";
-            document.getElementById('dec-output-container').classList.add('hidden');
-            document.getElementById('status-message').innerText = "";
-        });
+        function unlockApp() {
+            document.getElementById('calculator').classList.remove('active');
+            document.getElementById('encryptor').classList.add('active');
+            initPython();
+            checkUrlHash(); // Check for incoming share links
+        }
 
-        function openTab(name) {
-            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-            document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
-            document.getElementById(name).style.display = 'block';
+        function lockAndExit() {
+            location.hash = ""; // Clear URL
+            location.reload(); // Hard reset
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).style.display = 'block';
             event.target.classList.add('active');
         }
 
-        function logStatus(msg) {
-            const el = document.getElementById('status-message');
-            el.innerText = msg;
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-text').className = mode === 'text' ? 'mode-opt active' : 'mode-opt';
+            document.getElementById('mode-img').className = mode === 'img' ? 'mode-opt active' : 'mode-opt';
+            document.getElementById('file-input-area').style.display = mode === 'img' ? 'block' : 'none';
+            document.getElementById('text-output').style.display = 'none';
         }
 
-        // ==========================================
-        // BACKEND: PYTHON ENVIRONMENT (PYODIDE)
-        // ==========================================
-        async function initPython() {
-            const loaderContainer = document.getElementById('loader-bar-container');
-            const loaderBar = document.getElementById('loader-bar');
-            const initStatus = document.getElementById('init-status');
-            
-            loaderContainer.style.display = 'block';
-            initStatus.innerText = "Initializing Crypto Kernel...";
-            loaderBar.style.width = "20%";
+        function toggleDecInput() {
+            const isImg = document.querySelector('input[name="d-src"]:checked').value === 'img';
+            document.getElementById('dec-text-area').style.display = isImg ? 'none' : 'block';
+            document.getElementById('dec-file-area').style.display = isImg ? 'block' : 'none';
+        }
 
+        function status(msg) { document.getElementById('status-message').innerText = msg; }
+
+        function copyToClip(text) {
+            navigator.clipboard.writeText(text);
+            status("COPIED TO CLIPBOARD");
+        }
+
+        // --- URL LINK HANDLING ---
+        function checkUrlHash() {
+            if(window.location.hash.length > 10) {
+                // We have a payload
+                const payload = window.location.hash.substring(1); // Remove #
+                switchTab('Decrypt');
+                document.getElementById('dec-text-input').value = payload;
+                status("INCOMING TRANSMISSION DETECTED");
+            }
+        }
+
+        function generateLink(payload) {
+            const baseUrl = window.location.href.split('#')[0];
+            return `${baseUrl}#${payload}`;
+        }
+
+        // --- PYODIDE & ENCRYPTION CORE ---
+        async function initPython() {
+            if (isPyReady) return;
+            status("LOADING MILITARY GRADE MODULES...");
+            
             try {
-                // 1. Load Pyodide Engine
                 pyodide = await loadPyodide();
-                loaderBar.style.width = "50%";
-                initStatus.innerText = "Loading Encryption Libraries...";
-                
-                // 2. Load Libraries
                 await pyodide.loadPackage("micropip");
                 const micropip = pyodide.pyimport("micropip");
-                
-                // Install dependencies sequentially
-                await micropip.install('cryptography');
-                loaderBar.style.width = "75%";
-                await micropip.install('Pillow');
-                loaderBar.style.width = "90%";
+                await micropip.install("cryptography");
+                await micropip.install("Pillow"); // Image manipulation
 
-                // 3. Define the Python Class
                 await pyodide.runPythonAsync(`
 import os
-import io
+import json
 import base64
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import time
+import io
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from PIL import Image
 
-class SecureEngine:
+class ParanoidEncryptor:
     def __init__(self):
-        # PBKDF2-HMAC-SHA256 with 310,000 iterations
-        # Balances high security with browser performance
-        self.salt_len = 16
-        self.iterations = 310000 
-        self.key_len = 32 # AES-256
+        # 600,000 Iterations for Extreme Bruteforce Resistance
+        self.iterations = 600000 
+        self.salt_len = 32
 
-    def _derive_key(self, password: str, salt: bytes) -> bytes:
+    def _derive_keys(self, password, salt):
+        # Derive 64 bytes (32 for AES, 32 for ChaCha)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
-            length=self.key_len,
+            length=64, 
             salt=salt,
             iterations=self.iterations,
         )
-        return kdf.derive(password.encode())
+        key_material = kdf.derive(password.encode())
+        return key_material[:32], key_material[32:]
 
-    def encrypt_logic(self, plaintext, password):
-        # 1. Generate Salt and Nonce
+    def encrypt(self, plaintext, password, expiry_minutes):
+        # 1. Prepare Payload with Expiration
+        expiration_ts = 0
+        if expiry_minutes > 0:
+            expiration_ts = int(time.time()) + (expiry_minutes * 60)
+            
+        data = json.dumps({"msg": plaintext, "exp": expiration_ts}).encode('utf-8')
+
+        # 2. Key Derivation
         salt = os.urandom(self.salt_len)
-        nonce = os.urandom(12) # Standard for GCM
-        
-        # 2. Derive Key
-        key = self._derive_key(password, salt)
-        
-        # 3. Encrypt
-        aesgcm = AESGCM(key)
-        ciphertext = aesgcm.encrypt(nonce, plaintext.encode('utf-8'), None)
-        
-        # 4. Pack: [Salt 16][Nonce 12][Ciphertext X]
-        return salt + nonce + ciphertext
+        aes_key, chacha_key = self._derive_keys(password, salt)
 
-    def decrypt_logic(self, data_bytes, password):
+        # 3. Layer 1: AES-256-GCM
+        aes_nonce = os.urandom(12)
+        aes = AESGCM(aes_key)
+        layer1 = aes.encrypt(aes_nonce, data, None)
+
+        # 4. Layer 2: ChaCha20-Poly1305 (Cascade)
+        chacha_nonce = os.urandom(12)
+        chacha = ChaCha20Poly1305(chacha_key)
+        layer2 = chacha.encrypt(chacha_nonce, layer1, None)
+
+        # 5. Pack: Salt(32) + AES_Nonce(12) + ChaCha_Nonce(12) + Ciphertext
+        final_bytes = salt + aes_nonce + chacha_nonce + layer2
+        return base64.urlsafe_b64encode(final_bytes).decode('utf-8')
+
+    def decrypt(self, b64_data, password):
         try:
-            # 1. Unpack
-            salt = data_bytes[:16]
-            nonce = data_bytes[16:28]
-            ciphertext = data_bytes[28:]
+            raw_data = base64.urlsafe_b64decode(b64_data)
             
-            # 2. Derive Key
-            key = self._derive_key(password, salt)
-            
-            # 3. Decrypt & Authenticate
-            aesgcm = AESGCM(key)
-            plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-            return plaintext.decode('utf-8')
-        except Exception:
-            # Returns None if tag mismatch (tampering) or wrong password
-            return None
+            # Extract Components
+            salt = raw_data[:32]
+            aes_nonce = raw_data[32:44]
+            chacha_nonce = raw_data[44:56]
+            ciphertext = raw_data[56:]
 
-    def hide_in_image(self, image_bytes, secret_data_bytes):
-        # Ensure RGB to avoid palette issues
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+            # Derive Keys
+            aes_key, chacha_key = self._derive_keys(password, salt)
+
+            # Layer 2 Decrypt (ChaCha)
+            chacha = ChaCha20Poly1305(chacha_key)
+            layer1 = chacha.decrypt(chacha_nonce, ciphertext, None)
+
+            # Layer 1 Decrypt (AES)
+            aes = AESGCM(aes_key)
+            json_bytes = aes.decrypt(aes_nonce, layer1, None)
+
+            # Parse JSON & Check Expiry
+            payload = json.loads(json_bytes.decode('utf-8'))
+            
+            if payload['exp'] > 0 and int(time.time()) > payload['exp']:
+                return "EXPIRED"
+            
+            return payload['msg']
+
+        except Exception as e:
+            return "ERROR"
+
+    def hide_in_image(self, img_bytes, b64_payload):
+        # Convert B64 string to bytes
+        payload_bytes = b64_payload.encode('utf-8')
+        length = len(payload_bytes)
         
-        # Prepend length (4 bytes) to the data
-        length = len(secret_data_bytes)
-        full_payload = length.to_bytes(4, 'big') + secret_data_bytes
-        
-        # Convert payload to bit list
-        bits = []
-        for byte in full_payload:
-            for i in range(8):
-                bits.append((byte >> (7 - i)) & 1)
-        
+        img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
         pixels = list(img.getdata())
         
-        # Capacity Check
+        # 32-bit length header + payload
+        full_data = length.to_bytes(4, 'big') + payload_bytes
+        
+        bits = []
+        for byte in full_data:
+            for i in range(8):
+                bits.append((byte >> (7-i)) & 1)
+                
         if len(bits) > len(pixels) * 3:
-            raise ValueError(f"Image too small. Need {len(bits)//3} pixels, have {len(pixels)}.")
-        
-        # Embed bits into LSB of pixels
-        new_pixels = []
-        bit_idx = 0
-        total_bits = len(bits)
-        
-        for p in pixels:
-            if bit_idx >= total_bits:
-                new_pixels.append(p)
-                continue
-                
-            r, g, b = p
+            return "SIZE_ERR"
             
-            # Modify Red
-            if bit_idx < total_bits:
-                r = (r & ~1) | bits[bit_idx]
-                bit_idx += 1
-                
-            # Modify Green
-            if bit_idx < total_bits:
-                g = (g & ~1) | bits[bit_idx]
-                bit_idx += 1
-                
-            # Modify Blue
-            if bit_idx < total_bits:
-                b = (b & ~1) | bits[bit_idx]
-                bit_idx += 1
-                
-            new_pixels.append((r, g, b))
+        new_pixels = []
+        idx = 0
+        for p in pixels:
+            if idx < len(bits):
+                r = (p[0] & ~1) | bits[idx]; idx += 1
+            else: r = p[0]
+            if idx < len(bits):
+                g = (p[1] & ~1) | bits[idx]; idx += 1
+            else: g = p[1]
+            if idx < len(bits):
+                b = (p[2] & ~1) | bits[idx]; idx += 1
+            else: b = p[2]
+            new_pixels.append((r,g,b))
             
         img.putdata(new_pixels)
         out = io.BytesIO()
-        # Save as PNG (lossless)
         img.save(out, format='PNG')
         return out.getvalue()
 
-    def reveal_from_image(self, image_bytes):
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    def reveal_from_image(self, img_bytes):
+        img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
         pixels = list(img.getdata())
         
-        # Extract LSBs
         bits = []
         for p in pixels:
-            bits.append(p[0] & 1)
-            bits.append(p[1] & 1)
-            bits.append(p[2] & 1)
+            bits.extend([p[0]&1, p[1]&1, p[2]&1])
             
-        # Reconstruct bytes
-        all_bytes = bytearray()
-        byte_val = 0
-        bit_count = 0
-        
-        for b in bits:
-            byte_val = (byte_val << 1) | b
-            bit_count += 1
-            if bit_count == 8:
-                all_bytes.append(byte_val)
-                byte_val = 0
-                bit_count = 0
-        
-        # Parse Length (First 4 bytes)
-        if len(all_bytes) < 4: return None
-        data_len = int.from_bytes(all_bytes[:4], 'big')
-        
-        # Safety bounds check
-        if data_len > len(all_bytes) - 4 or data_len <= 0:
-            return None 
+        # Reconstruct Length (first 32 bits)
+        len_val = 0
+        for i in range(32):
+            len_val = (len_val << 1) | bits[i]
             
-        return bytes(all_bytes[4:4+data_len])
+        # Bounds check
+        if len_val <= 0 or len_val > len(pixels): return None
+        
+        # Reconstruct Payload
+        payload_bytes = bytearray()
+        for i in range(len_val):
+            val = 0
+            for b in range(8):
+                bit_index = 32 + (i*8) + b
+                val = (val << 1) | bits[bit_index]
+            payload_bytes.append(val)
+            
+        return payload_bytes.decode('utf-8')
 
-crypto_tool = SecureEngine()
+engine = ParanoidEncryptor()
                 `);
-
-                pythonReady = true;
-                loaderBar.style.width = "100%";
-                setTimeout(() => { 
-                    loaderContainer.style.display = 'none'; 
-                    initStatus.innerText = "System Ready. AES-256-GCM Active.";
-                    initStatus.style.color = "#00e676";
-                }, 500);
-                
-            } catch (err) {
-                initStatus.innerText = "Initialization Failed.";
-                initStatus.style.color = "red";
-                logStatus("Error: " + err);
-                console.error(err);
+                isPyReady = true;
+                status("SYSTEM READY. CASCADE ENCRYPTION ACTIVE.");
+            } catch(e) {
+                status("INIT FAILURE: " + e);
             }
         }
 
-        // ==========================================
-        // INTERFACE: ENCRYPT & DECRYPT HANDLERS
-        // ==========================================
-
-        async function performEncryption() {
-            if (!pythonReady) { alert("System initializing... please wait."); return; }
-            
+        // --- HANDLERS ---
+        async function processEncrypt() {
+            if (!isPyReady) return;
             const msg = document.getElementById('msg-input').value;
             const pass = document.getElementById('enc-pass').value;
-            const fileInput = document.getElementById('enc-file');
+            const mins = document.getElementById('enc-timer').value || 0;
+            const btn = document.getElementById('btn-enc');
             
-            if (!msg || !pass || !fileInput.files[0]) {
-                logStatus(">> ERROR: MISSING FIELDS");
-                return;
-            }
-
-            logStatus(">> PROCESSING: ENCRYPTING DATA & EMBEDDING...");
-            const btn = document.getElementById('btn-encrypt');
+            if(!msg || !pass) { status("MISSING DATA"); return; }
+            
             btn.disabled = true;
+            status("ENCRYPTING (600k ITERATIONS)...");
+
+            // Python Bridge
+            pyodide.globals.set("js_msg", msg);
+            pyodide.globals.set("js_pass", pass);
+            pyodide.globals.set("js_mins", parseInt(mins));
 
             try {
-                const fileData = await fileInput.files[0].arrayBuffer();
-                const fileUint8 = new Uint8Array(fileData);
+                // Step 1: Generate Encrypted Base64 String
+                let b64_result = await pyodide.runPythonAsync(`engine.encrypt(js_msg, js_pass, js_mins)`);
 
-                // Set Python Globals
-                pyodide.globals.set("js_msg", msg);
-                pyodide.globals.set("js_pass", pass);
-                pyodide.globals.set("js_img_bytes", fileUint8);
+                if (currentMode === 'text') {
+                    // Show Link & Text
+                    const link = generateLink(b64_result);
+                    const displayHTML = `<b>ENCRYPTED PAYLOAD:</b><br>${b64_result.substring(0,30)}...<br><br><b>SHARE LINK:</b><br>${link}`;
+                    
+                    const outBox = document.getElementById('text-output');
+                    outBox.innerHTML = displayHTML;
+                    outBox.style.display = 'block';
+                    outBox.onclick = function() { copyToClip(link); };
+                    status("ENCRYPTION COMPLETE. CLICK BOX TO COPY LINK.");
 
-                // Execute Python - NOW WRAPPED IN A FUNCTION WITH EXPLICIT RETURN
-                const resultBytes = await pyodide.runPythonAsync(`
-def process_encryption():
-    try:
-        encrypted_payload = crypto_tool.encrypt_logic(js_msg, js_pass)
-        final_img_bytes = crypto_tool.hide_in_image(js_img_bytes.to_py(), encrypted_payload)
-        return final_img_bytes
-    except ValueError as ve:
-        return "SIZE_ERROR"
-    except Exception as e:
-        return "ERR:" + str(e)
-
-process_encryption()
-                `);
-
-                // Check for Python-side errors returned as strings
-                if (typeof resultBytes === "string") {
-                    if (resultBytes === "SIZE_ERROR") throw new Error("Image too small. Use a larger PNG.");
-                    else throw new Error("Python Error: " + resultBytes);
-                }
-                
-                // Double check result is not undefined
-                if (!resultBytes) throw new Error("Encryption failed silently (Result was undefined).");
-
-                // Handle Success
-                const resultArray = resultBytes.toJs();
-                const blob = new Blob([resultArray], { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "secure_camouflaged.png";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                logStatus(">> SUCCESS: IMAGE DOWNLOADED.");
-
-                // Cleanup
-                pyodide.runPython("del js_msg, js_pass, js_img_bytes");
-                if (resultBytes.destroy) resultBytes.destroy(); // Clean up proxy
-
-            } catch (err) {
-                logStatus(">> ERROR: " + err.message);
-                console.error(err);
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        async function performDecryption() {
-            if (!pythonReady) { alert("System initializing... please wait."); return; }
-            
-            const pass = document.getElementById('dec-pass').value;
-            const fileInput = document.getElementById('dec-file');
-            const resultBox = document.getElementById('dec-result');
-            const container = document.getElementById('dec-output-container');
-            
-            container.classList.add('hidden');
-            resultBox.value = "";
-
-            if (!pass || !fileInput.files[0]) {
-                logStatus(">> ERROR: PASSWORD OR IMAGE MISSING");
-                return;
-            }
-
-            logStatus(">> PROCESSING: EXTRACTING & DECRYPTING...");
-            const btn = document.getElementById('btn-decrypt');
-            btn.disabled = true;
-
-            try {
-                const fileData = await fileInput.files[0].arrayBuffer();
-                const fileUint8 = new Uint8Array(fileData);
-
-                // Set globals
-                pyodide.globals.set("js_dec_pass", pass);
-                pyodide.globals.set("js_dec_img", fileUint8);
-
-                // Execute Python - NOW WRAPPED IN A FUNCTION WITH EXPLICIT RETURN
-                const decryptedText = await pyodide.runPythonAsync(`
-def process_decryption():
-    try:
-        extracted_payload = crypto_tool.reveal_from_image(js_dec_img.to_py())
-        if extracted_payload:
-            res = crypto_tool.decrypt_logic(extracted_payload, js_dec_pass)
-            if res:
-                return res
-            else:
-                return "AUTH_FAIL"
-        else:
-            return "NO_DATA"
-    except Exception as e:
-        return "ERR:" + str(e)
-
-process_decryption()
-                `);
-
-                if (decryptedText === "AUTH_FAIL") {
-                    logStatus(">> DECRYPTION FAILED: WRONG PASSWORD OR CORRUPTED DATA");
-                } else if (decryptedText === "NO_DATA") {
-                    logStatus(">> FAILED: NO HIDDEN MESSAGE FOUND IN IMAGE");
-                } else if (decryptedText && decryptedText.startsWith("ERR:")) {
-                    throw new Error(decryptedText);
-                } else if (!decryptedText) {
-                     throw new Error("Unknown error (Undefined result)");
                 } else {
-                    resultBox.value = decryptedText;
-                    container.classList.remove('hidden');
-                    logStatus(">> SUCCESS: MESSAGE REVEALED");
+                    // Image Steganography
+                    const fileInput = document.getElementById('enc-file');
+                    if (!fileInput.files[0]) throw new Error("NO IMAGE SELECTED");
+                    
+                    const buff = await fileInput.files[0].arrayBuffer();
+                    pyodide.globals.set("js_img", new Uint8Array(buff));
+                    pyodide.globals.set("js_payload", b64_result);
+
+                    const img_bytes = await pyodide.runPythonAsync(`engine.hide_in_image(js_img.to_py(), js_payload)`);
+                    
+                    if (img_bytes === "SIZE_ERR") throw new Error("MSG TOO LARGE FOR IMAGE");
+
+                    const blob = new Blob([img_bytes.toJs()], {type: 'image/png'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'confidential.png';
+                    a.click();
+                    status("IMAGE DOWNLOADED");
+                }
+            } catch(e) {
+                status("ERROR: " + e.message);
+            } finally {
+                btn.disabled = false;
+                pyodide.runPython("del js_msg, js_pass"); // Cleanup
+            }
+        }
+
+        async function processDecrypt() {
+            if (!isPyReady) return;
+            const pass = document.getElementById('dec-pass').value;
+            const resBox = document.getElementById('dec-result');
+            const btn = document.getElementById('btn-dec');
+            
+            if(!pass) { status("PASSWORD REQUIRED"); return; }
+            btn.disabled = true;
+            status("DECRYPTING...");
+
+            try {
+                let payload = "";
+                
+                // Get Payload Source
+                if (document.querySelector('input[name="d-src"]:checked').value === 'text') {
+                    payload = document.getElementById('dec-text-input').value.trim();
+                } else {
+                    const fileInput = document.getElementById('dec-file');
+                    if(!fileInput.files[0]) throw new Error("NO FILE");
+                    const buff = await fileInput.files[0].arrayBuffer();
+                    pyodide.globals.set("js_dec_img", new Uint8Array(buff));
+                    payload = await pyodide.runPythonAsync(`engine.reveal_from_image(js_dec_img.to_py())`);
+                    if(!payload) throw new Error("NO HIDDEN DATA");
                 }
 
-                // Cleanup
-                pyodide.runPython("del js_dec_pass, js_dec_img");
+                // Decrypt Payload
+                pyodide.globals.set("js_b64", payload);
+                pyodide.globals.set("js_dec_pass", pass);
+                
+                const result = await pyodide.runPythonAsync(`engine.decrypt(js_b64, js_dec_pass)`);
 
-            } catch (err) {
-                logStatus(">> ERROR: " + err.message);
-                console.error(err);
+                if (result === "EXPIRED") {
+                    document.getElementById('lockout').style.display = 'block'; // Trigger Scary Overlay
+                    status("MSG DESTROYED");
+                } else if (result === "ERROR") {
+                    status("DECRYPTION FAILED (WRONG PASSWORD?)");
+                } else {
+                    resBox.style.display = 'block';
+                    resBox.innerText = result;
+                    status("SUCCESSFULLY DECRYPTED");
+                }
+
+            } catch(e) {
+                status("ERROR: " + e.message);
             } finally {
                 btn.disabled = false;
             }
         }
-
-        // ==========================================
-        // CLIPBOARD HYGIENE
-        // ==========================================
-        document.getElementById('btn-copy').addEventListener('click', () => {
-            const resultBox = document.getElementById('dec-result');
-            navigator.clipboard.writeText(resultBox.value).then(() => {
-                logStatus(">> COPIED. CLIPBOARD WIPING IN 30S...");
-                setTimeout(() => {
-                    navigator.clipboard.writeText(" ");
-                    logStatus(">> CLIPBOARD WIPED.");
-                }, 30000);
-            }).catch(err => {
-                logStatus(">> ERROR COPYING: HTTPS REQUIRED");
-            });
-        });
 
     </script>
 </body>
