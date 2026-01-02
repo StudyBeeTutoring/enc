@@ -1,0 +1,31 @@
+/* Basic styling for layout and appearance */
+body { font-family: sans-serif; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+.container { width: 320px; background: #333; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); padding: 20px; }
+.app-view { display: none; }
+.app-view.active { display: block; }
+
+/* Calculator Styles */
+.display { background: #222; color: white; text-align: right; padding: 20px; font-size: 2.5em; border-radius: 5px; margin-bottom: 20px; overflow-x: auto;}
+.buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.btn { background: #555; color: white; border: none; padding: 20px; font-size: 1.2em; border-radius: 5px; cursor: pointer; transition: background 0.2s; }
+.btn:hover { background: #666; }
+.op { background: #888; }
+.equal { background: #f9a825; grid-column: span 2; }
+
+/* Encryptor Styles */
+#encryptor h2 { color: white; text-align: center; }
+#back-to-calc { background: #f44336; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
+.tabs { overflow: hidden; border-bottom: 1px solid #555; margin-bottom: 15px; }
+.tab-link { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; color: white; font-size: 1em; }
+.tab-link:hover { background-color: #555; }
+.tab-link.active { background-color: #f9a825; color: #333; }
+.tab-content { display: none; }
+textarea, input[type="password"] { width: 95%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #777; background: #444; color: white; }
+textarea { resize: vertical; min-height: 80px; }
+.file-label { display: block; background: #007BFF; color: white; padding: 10px; text-align: center; border-radius: 5px; cursor: pointer; margin-bottom: 10px; }
+input[type="file"] { display: none; }
+#encrypt-btn, #decrypt-btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
+#status-message { color: #FFC107; text-align: center; margin-top: 15px; }
+.output-box { margin-top: 15px; background: #222; padding: 10px; border-radius: 5px; min-height: 50px; color: white; word-wrap: break-word; }
+#copy-btn { background: #007BFF; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+.hidden { display: none !important; }
