@@ -433,8 +433,6 @@ crypto_tool = SecureEngine()
             }
 
             logStatus(">> PROCESSING: ENCRYPTING DATA & EMBEDDING...");
-            
-            // Disable button
             const btn = document.getElementById('btn-encrypt');
             btn.disabled = true;
 
@@ -447,23 +445,29 @@ crypto_tool = SecureEngine()
                 pyodide.globals.set("js_pass", pass);
                 pyodide.globals.set("js_img_bytes", fileUint8);
 
-                // Execute Python
+                // Execute Python - NOW WRAPPED IN A FUNCTION WITH EXPLICIT RETURN
                 const resultBytes = await pyodide.runPythonAsync(`
-try:
-    encrypted_payload = crypto_tool.encrypt_logic(js_msg, js_pass)
-    final_img_bytes = crypto_tool.hide_in_image(js_img_bytes.to_py(), encrypted_payload)
-    final_img_bytes
-except ValueError as ve:
-    "SIZE_ERROR"
-except Exception as e:
-    str(e)
+def process_encryption():
+    try:
+        encrypted_payload = crypto_tool.encrypt_logic(js_msg, js_pass)
+        final_img_bytes = crypto_tool.hide_in_image(js_img_bytes.to_py(), encrypted_payload)
+        return final_img_bytes
+    except ValueError as ve:
+        return "SIZE_ERROR"
+    except Exception as e:
+        return "ERR:" + str(e)
+
+process_encryption()
                 `);
 
                 // Check for Python-side errors returned as strings
                 if (typeof resultBytes === "string") {
-                    if (resultBytes === "SIZE_ERROR") throw new Error("Image too small for this message.");
+                    if (resultBytes === "SIZE_ERROR") throw new Error("Image too small. Use a larger PNG.");
                     else throw new Error("Python Error: " + resultBytes);
                 }
+                
+                // Double check result is not undefined
+                if (!resultBytes) throw new Error("Encryption failed silently (Result was undefined).");
 
                 // Handle Success
                 const resultArray = resultBytes.toJs();
@@ -480,7 +484,8 @@ except Exception as e:
                 logStatus(">> SUCCESS: IMAGE DOWNLOADED.");
 
                 // Cleanup
-                pyodide.runPython("del js_msg, js_pass, js_img_bytes, encrypted_payload, final_img_bytes");
+                pyodide.runPython("del js_msg, js_pass, js_img_bytes");
+                if (resultBytes.destroy) resultBytes.destroy(); // Clean up proxy
 
             } catch (err) {
                 logStatus(">> ERROR: " + err.message);
@@ -514,29 +519,37 @@ except Exception as e:
                 const fileData = await fileInput.files[0].arrayBuffer();
                 const fileUint8 = new Uint8Array(fileData);
 
-                // Set globals (Corrected variable names here)
+                // Set globals
                 pyodide.globals.set("js_dec_pass", pass);
                 pyodide.globals.set("js_dec_img", fileUint8);
 
+                // Execute Python - NOW WRAPPED IN A FUNCTION WITH EXPLICIT RETURN
                 const decryptedText = await pyodide.runPythonAsync(`
-try:
-    extracted_payload = crypto_tool.reveal_from_image(js_dec_img.to_py())
-    if extracted_payload:
-        # Use the correct JS variable name here
-        res = crypto_tool.decrypt_logic(extracted_payload, js_dec_pass)
-        res if res else "AUTH_FAIL"
-    else:
-        "NO_DATA"
-except Exception as e:
-    "ERR:" + str(e)
+def process_decryption():
+    try:
+        extracted_payload = crypto_tool.reveal_from_image(js_dec_img.to_py())
+        if extracted_payload:
+            res = crypto_tool.decrypt_logic(extracted_payload, js_dec_pass)
+            if res:
+                return res
+            else:
+                return "AUTH_FAIL"
+        else:
+            return "NO_DATA"
+    except Exception as e:
+        return "ERR:" + str(e)
+
+process_decryption()
                 `);
 
                 if (decryptedText === "AUTH_FAIL") {
                     logStatus(">> DECRYPTION FAILED: WRONG PASSWORD OR CORRUPTED DATA");
                 } else if (decryptedText === "NO_DATA") {
                     logStatus(">> FAILED: NO HIDDEN MESSAGE FOUND IN IMAGE");
-                } else if (decryptedText.startsWith("ERR:")) {
+                } else if (decryptedText && decryptedText.startsWith("ERR:")) {
                     throw new Error(decryptedText);
+                } else if (!decryptedText) {
+                     throw new Error("Unknown error (Undefined result)");
                 } else {
                     resultBox.value = decryptedText;
                     container.classList.remove('hidden');
@@ -544,8 +557,7 @@ except Exception as e:
                 }
 
                 // Cleanup
-                pyodide.runPython("del js_dec_pass, js_dec_img, extracted_payload");
-                if(typeof res !== 'undefined') pyodide.runPython("del res");
+                pyodide.runPython("del js_dec_pass, js_dec_img");
 
             } catch (err) {
                 logStatus(">> ERROR: " + err.message);
